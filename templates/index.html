@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Digit Classifier</title>
+    <style>
+      /* Simple and clean styling */
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        text-align: center;
+      }
+
+      #canvas {
+        border: 2px solid #333;
+        margin: 20px 0;
+        cursor: crosshair;
+      }
+
+      button {
+        padding: 10px 20px;
+        font-size: 16px;
+        margin: 10px;
+        cursor: pointer;
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        border-radius: 4px;
+      }
+
+      button:hover {
+        background-color: #45a049;
+      }
+
+      #result {
+        font-size: 24px;
+        margin-top: 20px;
+        font-weight: bold;
+      }
+
+      .instructions {
+        text-align: left;
+        margin: 20px 0;
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Digit Classifier</h1>
+
+    <div class="instructions">
+      <h3>Instructions:</h3>
+      <ol>
+        <li>Draw a single digit (0-9) in the canvas below</li>
+        <li>Try to center your digit and make it large enough</li>
+        <li>Click 'Predict' to see the model's prediction</li>
+        <li>Use 'Clear' to start over</li>
+      </ol>
+    </div>
+
+    <canvas id="canvas" width="280" height="280"></canvas>
+    <br />
+    <button onclick="clearCanvas()">Clear</button>
+    <button onclick="predict()">Predict</button>
+    <div id="result"></div>
+
+    <script>
+      // Get canvas context and set initial properties
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      let isDrawing = false;
+      let lastX = 0;
+      let lastY = 0;
+
+      // Set up canvas for drawing
+      ctx.strokeStyle = "black";
+      ctx.lineWidth = 12;
+      ctx.lineCap = "round";
+
+      // Initialize canvas with white background
+      ctx.fillStyle = "white";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Drawing event listeners
+      canvas.addEventListener("mousedown", startDrawing);
+      canvas.addEventListener("mousemove", draw);
+      canvas.addEventListener("mouseup", stopDrawing);
+      canvas.addEventListener("mouseout", stopDrawing);
+
+      function startDrawing(e) {
+        isDrawing = true;
+        [lastX, lastY] = [e.offsetX, e.offsetY];
+      }
+
+      function draw(e) {
+        if (!isDrawing) return;
+
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(e.offsetX, e.offsetY);
+        ctx.stroke();
+        [lastX, lastY] = [e.offsetX, e.offsetY];
+      }
+
+      function stopDrawing() {
+        isDrawing = false;
+      }
+
+      function clearCanvas() {
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        document.getElementById("result").textContent = "";
+      }
+
+      function predict() {
+        // Get the canvas data as base64 string
+        const imageData = canvas.toDataURL("image/png");
+
+        // Send to server for prediction
+        fetch("/predict", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ image: imageData }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.error) {
+              document.getElementById("result").textContent =
+                "Error: " + data.error;
+            } else {
+              document.getElementById("result").textContent =
+                "Prediction: " + data.prediction;
+            }
+          })
+          .catch((error) => {
+            document.getElementById("result").textContent =
+              "Error: " + error.message;
+          });
+      }
+
+      // Initialize canvas with white background on load
+      clearCanvas();
+    </script>
+  </body>
+</html>
