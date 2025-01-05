@@ -3,4 +3,5 @@ numpy==1.24.3
 pillow==10.0.0
 scikit-learn==1.3.0
 joblib==1.3.1
-pandas==2.0.3  # Required for fetch_openml 
+pandas==2.0.3  # Required for fetch_openml
+matplotlib==3.7.1  # Required for debug visualization 

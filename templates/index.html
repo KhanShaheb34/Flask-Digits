@@ -18,6 +18,7 @@
         border: 2px solid #333;
         margin: 20px 0;
         cursor: crosshair;
+        background-color: white;
       }
 
       button {
@@ -48,6 +49,17 @@
         background-color: #f8f9fa;
         border-radius: 4px;
       }
+
+      #debug-container {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      #debug-image {
+        max-width: 200px;
+        margin: 10px auto;
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -68,6 +80,9 @@
     <button onclick="clearCanvas()">Clear</button>
     <button onclick="predict()">Predict</button>
     <div id="result"></div>
+    <div id="debug-container">
+      <img id="debug-image" alt="Preprocessed digit" />
+    </div>
 
     <script>
       // Get canvas context and set initial properties
@@ -79,8 +94,9 @@
 
       // Set up canvas for drawing
       ctx.strokeStyle = "black";
-      ctx.lineWidth = 12;
+      ctx.lineWidth = 16;
       ctx.lineCap = "round";
+      ctx.lineJoin = "round";
 
       // Initialize canvas with white background
       ctx.fillStyle = "white";
@@ -115,6 +131,7 @@
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
         document.getElementById("result").textContent = "";
+        document.getElementById("debug-image").style.display = "none";
       }
 
       function predict() {
@@ -137,6 +154,15 @@
             } else {
               document.getElementById("result").textContent =
                 "Prediction: " + data.prediction;
+
+              // Display debug image
+              const debugImage = document.getElementById("debug-image");
+              if (data.debug_image) {
+                debugImage.src = data.debug_image;
+                debugImage.style.display = "block";
+              } else {
+                debugImage.style.display = "none";
+              }
             }
           })
           .catch((error) => {

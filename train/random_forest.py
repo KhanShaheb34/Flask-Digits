@@ -1,6 +1,7 @@
 from sklearn.datasets import fetch_openml
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
+from sklearn.preprocessing import StandardScaler
 import numpy as np
 import joblib
 import os
@@ -25,12 +26,13 @@ def load_mnist_data():
     # Convert data to float32 for faster processing
     X = X.astype('float32')
 
-    # Normalize the data
+    # Normalize pixel values to [0,1] range first
     X = X / 255.0
 
     # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=0.2, random_state=42
+        # Stratify to ensure balanced classes
+        X, y, test_size=0.2, random_state=42, stratify=y
     )
 
     logger.info(
@@ -40,29 +42,56 @@ def load_mnist_data():
 
 def train_random_forest(X_train, y_train):
     """
-    Train a Random Forest classifier
+    Train a Random Forest classifier with optimized parameters
     """
     logger.info("Training Random Forest classifier...")
-    # Create and train the model
+
+    # Create and train the model with better parameters
     rf_clf = RandomForestClassifier(
-        n_estimators=100,  # Number of trees
-        max_depth=10,      # Maximum depth of trees
-        n_jobs=-1,        # Use all available cores
-        random_state=42
+        n_estimators=200,      # More trees
+        max_depth=20,          # Deeper trees
+        min_samples_split=2,   # Minimum samples required to split
+        min_samples_leaf=1,    # Minimum samples required at leaf node
+        max_features='sqrt',   # Number of features to consider at each split
+        bootstrap=True,        # Use bootstrap samples
+        n_jobs=-1,            # Use all available cores
+        random_state=42,
+        class_weight='balanced'  # Handle class imbalance
     )
 
+    # Perform cross-validation to check model stability
+    logger.info("Performing cross-validation...")
+    cv_scores = cross_val_score(rf_clf, X_train, y_train, cv=5, n_jobs=-1)
+    logger.info(f"Cross-validation scores: {cv_scores}")
+    logger.info(
+        f"Average CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+
+    # Train the final model on full training data
     rf_clf.fit(X_train, y_train)
     logger.info("Training completed")
+
     return rf_clf
 
 
 def evaluate_model(model, X_test, y_test):
     """
-    Evaluate the model and print accuracy
+    Evaluate the model and print detailed metrics
     """
     logger.info("Evaluating model...")
+
+    # Get overall accuracy
     accuracy = model.score(X_test, y_test)
     logger.info(f"Model accuracy on test set: {accuracy:.4f}")
+
+    # Get predictions
+    y_pred = model.predict(X_test)
+
+    # Calculate per-class accuracy
+    for digit in sorted(set(y_test)):
+        mask = y_test == digit
+        digit_acc = (y_pred[mask] == y_test[mask]).mean()
+        logger.info(f"Accuracy for digit {digit}: {digit_acc:.4f}")
+
     return accuracy
 
 
@@ -75,8 +104,7 @@ def save_model(model, accuracy):
         os.path.dirname(__file__)), 'models')
     os.makedirs(models_dir, exist_ok=True)
 
-    # Save the model with timestamp and accuracy in filename
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Save the model
     model_path = os.path.join(models_dir, f'rf-digit-classifier.sav')
 
     logger.info(f"Saving model to {model_path}")
