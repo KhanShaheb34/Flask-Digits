@@ -1,12 +1,16 @@
+"""
+This module trains a Random Forest classifier on the MNIST dataset.
+It includes functions to load data, train the model, evaluate its performance,
+and save the trained model.
+"""
+
+import os
+import logging
+
 from sklearn.datasets import fetch_openml
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.preprocessing import StandardScaler
-import numpy as np
 import joblib
-import os
-from datetime import datetime
-import logging
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -36,7 +40,8 @@ def load_mnist_data():
     )
 
     logger.info(
-        f"Data loaded and split: {X_train.shape[0]} training samples, {X_test.shape[0]} test samples")
+        "Data loaded and split: %d training samples, %d test samples",
+        X_train.shape[0], X_test.shape[0])
     return X_train, X_test, y_train, y_test
 
 
@@ -62,9 +67,10 @@ def train_random_forest(X_train, y_train):
     # Perform cross-validation to check model stability
     logger.info("Performing cross-validation...")
     cv_scores = cross_val_score(rf_clf, X_train, y_train, cv=5, n_jobs=-1)
-    logger.info(f"Cross-validation scores: {cv_scores}")
+    logger.info("Cross-validation scores: %s", cv_scores)
     logger.info(
-        f"Average CV score: {cv_scores.mean():.4f} (+/- {cv_scores.std() * 2:.4f})")
+        "Average CV score: %.4f (+/- %.4f)",
+        cv_scores.mean(), cv_scores.std() * 2)
 
     # Train the final model on full training data
     rf_clf.fit(X_train, y_train)
@@ -81,7 +87,7 @@ def evaluate_model(model, X_test, y_test):
 
     # Get overall accuracy
     accuracy = model.score(X_test, y_test)
-    logger.info(f"Model accuracy on test set: {accuracy:.4f}")
+    logger.info("Model accuracy on test set: %.4f", accuracy)
 
     # Get predictions
     y_pred = model.predict(X_test)
@@ -90,12 +96,12 @@ def evaluate_model(model, X_test, y_test):
     for digit in sorted(set(y_test)):
         mask = y_test == digit
         digit_acc = (y_pred[mask] == y_test[mask]).mean()
-        logger.info(f"Accuracy for digit {digit}: {digit_acc:.4f}")
+        logger.info("Accuracy for digit %d: %.4f", digit, digit_acc)
 
     return accuracy
 
 
-def save_model(model, accuracy):
+def save_model(model, _accuracy):
     """
     Save the trained model
     """
@@ -105,9 +111,9 @@ def save_model(model, accuracy):
     os.makedirs(models_dir, exist_ok=True)
 
     # Save the model
-    model_path = os.path.join(models_dir, f'rf-digit-classifier.sav')
+    model_path = os.path.join(models_dir, 'rf-digit-classifier.sav')
 
-    logger.info(f"Saving model to {model_path}")
+    logger.info("Saving model to %s", model_path)
     joblib.dump(model, model_path)
     logger.info("Model saved successfully")
 
@@ -130,7 +136,7 @@ def main():
         save_model(model, accuracy)
 
     except Exception as e:
-        logger.error(f"An error occurred: {str(e)}")
+        logger.error("An error occurred: %s", str(e))
         raise
 
 

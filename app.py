@@ -1,31 +1,53 @@
-import matplotlib.pyplot as plt
-from flask import Flask, render_template, request, jsonify
-import joblib
-import numpy as np
-from PIL import Image
+"""
+Flask web application for digit classification using multiple ML models.
+Provides an interface to draw digits and get predictions using either
+Random Forest or CNN models.
+"""
+
 import io
 import base64
-# Set matplotlib to use non-GUI backend
+
 import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+from flask import Flask, render_template, request, jsonify
+from PIL import Image
+import joblib
+
+# Set matplotlib to use non-GUI backend
 matplotlib.use('Agg')
 
 # Initialize Flask application
 app = Flask(__name__)
 
-# Load the trained model
-# Note: Make sure the model file exists in the models directory
-MODEL_PATH = 'models/rf-digit-classifier.sav'
+# Model paths
+RF_MODEL_PATH = 'models/rf-digit-classifier.sav'
+CNN_MODEL_PATH = 'models/cnn-digit-classifier.h5'
+
+# Dictionary to store loaded models
+models = {}
 
 
-def load_model():
+def load_models():
+    """Load both RF and CNN models"""
     try:
-        return joblib.load(MODEL_PATH)
-    except:
-        print(f"Warning: Model file not found at {MODEL_PATH}")
-        return None
+        models['rf'] = joblib.load(RF_MODEL_PATH)
+        print("Random Forest model loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not load Random Forest model: {str(e)}")
+        models['rf'] = None
+
+    try:
+        models['cnn'] = tf.keras.models.load_model(CNN_MODEL_PATH)
+        print("CNN model loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not load CNN model: {str(e)}")
+        models['cnn'] = None
 
 
-model = load_model()
+# Load models at startup
+load_models()
 
 
 def save_debug_image(image_array, prediction):
@@ -33,15 +55,14 @@ def save_debug_image(image_array, prediction):
     try:
         # Create a figure with the image
         fig = plt.figure(figsize=(5, 5))
-        plt.imshow(image_array.reshape(28, 28),
-                   cmap='gray')  # Show original scale
+        plt.imshow(image_array.reshape(28, 28), cmap='gray')
         plt.title(f'Preprocessed Image (Prediction: {prediction})')
         plt.axis('off')
 
         # Save to a bytes buffer
         buf = io.BytesIO()
         plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0.1)
-        plt.close(fig)  # Explicitly close the figure
+        plt.close(fig)
         buf.seek(0)
 
         # Convert to base64
@@ -52,13 +73,9 @@ def save_debug_image(image_array, prediction):
         return None
 
 
-def preprocess_image(image_data):
+def preprocess_image(image_data, model_type='rf'):
     """
-    Preprocess the drawn digit image to match the format expected by the model
-    1. Convert base64 to image
-    2. Resize to 28x28
-    3. Convert to grayscale
-    4. Normalize pixel values to [0,1] range
+    Preprocess the drawn digit image based on model type
     """
     # Remove the data URL prefix to get the base64 string
     image_data = image_data.split(',')[1]
@@ -80,7 +97,12 @@ def preprocess_image(image_data):
     # Normalize to [0,1] range
     image_array = image_array / 255.0
 
-    return image_array
+    if model_type == 'cnn':
+        # Reshape for CNN (add batch and channel dimensions)
+        return image_array.reshape(1, 28, 28, 1)
+    else:
+        # Flatten for RF
+        return image_array.reshape(1, -1)
 
 
 @app.route('/')
@@ -93,30 +115,37 @@ def home():
 def predict():
     """
     Endpoint to handle digit prediction
-    Receives: JSON with base64 encoded image data
+    Receives: JSON with base64 encoded image data and model type
     Returns: Prediction result with debug image
     """
-    if not model:
-        return jsonify({'error': 'Model not loaded'}), 500
-
     try:
-        # Get the image data from the request
+        # Get the image data and model type from the request
         image_data = request.json['image']
+        # Default to RF if not specified
+        model_type = request.json.get('model_type', 'rf')
+
+        if model_type not in models or models[model_type] is None:
+            return jsonify({'error': f'{model_type.upper()} model not loaded'}), 500
 
         # Preprocess the image
-        processed_array = preprocess_image(image_data)
-
-        # Reshape for prediction
-        model_input = processed_array.reshape(1, -1)
+        processed_array = preprocess_image(image_data, model_type)
 
         # Make prediction
-        prediction = model.predict(model_input)[0]
+        if model_type == 'cnn':
+            prediction = int(
+                np.argmax(models[model_type].predict(processed_array)[0]))
+        else:
+            prediction = int(models[model_type].predict(processed_array)[0])
 
-        # Get debug image
-        debug_image = save_debug_image(processed_array, prediction)
+        # Get debug image (use the 2D version for visualization)
+        debug_image = save_debug_image(
+            processed_array.reshape(
+                28, 28) if model_type == 'cnn' else processed_array.reshape(28, 28),
+            prediction
+        )
 
         return jsonify({
-            'prediction': int(prediction),
+            'prediction': prediction,
             'debug_image': f'data:image/png;base64,{debug_image}' if debug_image else None
         })
 

@@ -60,6 +60,27 @@
         margin: 10px auto;
         display: none;
       }
+
+      select {
+        padding: 8px 15px;
+        font-size: 16px;
+        margin: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        background-color: white;
+      }
+
+      select:focus {
+        outline: none;
+        border-color: #4caf50;
+      }
+
+      .model-selection {
+        margin: 20px 0;
+        padding: 10px;
+        background-color: #f8f9fa;
+        border-radius: 4px;
+      }
     </style>
   </head>
   <body>
@@ -68,11 +89,20 @@
     <div class="instructions">
       <h3>Instructions:</h3>
       <ol>
+        <li>Select the model you want to use</li>
         <li>Draw a single digit (0-9) in the canvas below</li>
         <li>Try to center your digit and make it large enough</li>
         <li>Click 'Predict' to see the model's prediction</li>
         <li>Use 'Clear' to start over</li>
       </ol>
+    </div>
+
+    <div class="model-selection">
+      <label for="model-select">Select Model: </label>
+      <select id="model-select">
+        <option value="rf">Random Forest</option>
+        <option value="cnn">CNN (More Accurate)</option>
+      </select>
     </div>
 
     <canvas id="canvas" width="280" height="280"></canvas>
@@ -135,6 +165,9 @@
       }
 
       function predict() {
+        // Get the selected model
+        const modelType = document.getElementById("model-select").value;
+
         // Get the canvas data as base64 string
         const imageData = canvas.toDataURL("image/png");
 
@@ -144,7 +177,10 @@
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ image: imageData }),
+          body: JSON.stringify({
+            image: imageData,
+            model_type: modelType,
+          }),
         })
           .then((response) => response.json())
           .then((data) => {
@@ -153,7 +189,7 @@
                 "Error: " + data.error;
             } else {
               document.getElementById("result").textContent =
-                "Prediction: " + data.prediction;
+                `Prediction (${modelType.toUpperCase()}): ` + data.prediction;
 
               // Display debug image
               const debugImage = document.getElementById("debug-image");
