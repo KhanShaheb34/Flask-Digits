@@ -24,6 +24,7 @@ app = Flask(__name__)
 # Model paths
 RF_MODEL_PATH = 'models/rf-digit-classifier.sav'
 CNN_MODEL_PATH = 'models/cnn-digit-classifier.h5'
+CNN_AUG_MODEL_PATH = 'models/cnn-augmented-classifier.h5'
 
 # Dictionary to store loaded models
 models = {}
@@ -44,6 +45,13 @@ def load_models():
     except Exception as e:
         print(f"Warning: Could not load CNN model: {str(e)}")
         models['cnn'] = None
+
+    try:
+        models['cnn_aug'] = tf.keras.models.load_model(CNN_AUG_MODEL_PATH)
+        print("Augmented CNN model loaded successfully")
+    except Exception as e:
+        print(f"Warning: Could not load Augmented CNN model: {str(e)}")
+        models['cnn_aug'] = None
 
 
 # Load models at startup
@@ -97,7 +105,7 @@ def preprocess_image(image_data, model_type='rf'):
     # Normalize to [0,1] range
     image_array = image_array / 255.0
 
-    if model_type == 'cnn':
+    if model_type in ['cnn', 'cnn_aug']:
         # Reshape for CNN (add batch and channel dimensions)
         return image_array.reshape(1, 28, 28, 1)
     else:
@@ -131,16 +139,15 @@ def predict():
         processed_array = preprocess_image(image_data, model_type)
 
         # Make prediction
-        if model_type == 'cnn':
+        if model_type in ['cnn', 'cnn_aug']:
             prediction = int(
-                np.argmax(models[model_type].predict(processed_array)[0]))
+                np.argmax(models[model_type].predict(processed_array, verbose=0)[0]))
         else:
             prediction = int(models[model_type].predict(processed_array)[0])
 
         # Get debug image (use the 2D version for visualization)
         debug_image = save_debug_image(
-            processed_array.reshape(
-                28, 28) if model_type == 'cnn' else processed_array.reshape(28, 28),
+            processed_array.reshape(28, 28),
             prediction
         )
 
