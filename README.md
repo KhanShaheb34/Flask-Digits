@@ -9,8 +9,14 @@ A simple Flask web application that allows users to draw digits and get predicti
 ├── app.py              # Main Flask application
 ├── models/             # Directory for ML models
 │   └── rf-digit-classifier.sav  # Trained Random Forest model
+│   └── cnn-digit-classifier.h5  # Trained CNN model
+│   └── cnn-augmented-classifier.h5  # Trained CNN model with data augmentation
 ├── templates/          # HTML templates
 │   └── index.html     # Main page with drawing canvas
+├── train/             # Training scripts
+│   ├── random_forest.py       # Random Forest training
+│   ├── cnn_model.py          # Basic CNN training
+│   └── cnn_augmented_model.py # CNN with data augmentation
 └── requirements.txt    # Python dependencies
 ```
 
@@ -29,7 +35,37 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-3. Make sure you have the trained model file `rf-digit-classifier.sav` in the `models` directory.
+## Training Models
+
+You have three options for training the digit classifier:
+
+1. Random Forest Classifier (Default):
+
+```bash
+python train/random_forest.py
+```
+
+This will train a Random Forest model and save it as `models/rf-digit-classifier.sav`.
+
+2. Basic CNN Model:
+
+```bash
+python train/cnn_model.py
+```
+
+This will train a basic Convolutional Neural Network model.
+
+3. CNN with Data Augmentation:
+
+```bash
+python train/cnn_augmented_model.py
+```
+
+This version uses data augmentation techniques for improved performance.
+
+Choose one of the above training scripts based on your needs. The web application is configured to use the Random Forest model by default.
+
+## Running Flask Server
 
 4. Run the application:
 
